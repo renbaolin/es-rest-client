@@ -50,4 +50,9 @@ public class RestClientConfig {
             return httpClientBuilder;
         }).setMaxRetryTimeoutMillis(5 * 60 * 1000);
     }
+
+    @Bean
+    public RestClient restClient(@Autowired RestClientBuilder restClientBuilder) {
+        return restClientBuilder.build();
+    }
 }

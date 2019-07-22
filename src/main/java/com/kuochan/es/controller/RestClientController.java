@@ -1,6 +1,8 @@
 package com.kuochan.es.controller;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.delete.DeleteResponse;
@@ -15,6 +17,8 @@ import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.search.SearchHit;
+import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,7 +26,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.alibaba.fastjson.JSON;
+import com.google.common.collect.Lists;
 import com.kuochan.es.constant.RestClientConstant;
+import com.kuochan.es.vo.PostVO;
+import com.kuochan.es.vo.SearchResultVO;
 
 /**
  * RestClient demo
@@ -65,9 +73,9 @@ public class RestClientController {
      * @return
      */
     @RequestMapping("/query_by_page")
-    public Object queryByPage(@RequestParam(value = "keyword", defaultValue = "") String keyword,
-                              @RequestParam(value = "page", defaultValue = "0") int page,
-                              @RequestParam(value = "size", defaultValue = "15") int size) {
+    public SearchResultVO queryByPage(@RequestParam(value = "keyword", defaultValue = "") String keyword,
+                                      @RequestParam(value = "page", defaultValue = "0") int page,
+                                      @RequestParam(value = "size", defaultValue = "15") int size) {
 
         //分页信息
         SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
@@ -91,13 +99,32 @@ public class RestClientController {
         SearchRequest searchRequest = new SearchRequest(RestClientConstant.POST_INDEX);
         searchRequest.types(RestClientConstant.INDEX_TYPE);
         searchRequest.source(searchSourceBuilder);
-        SearchResponse response = null;
+        SearchResultVO searchResultVO = new SearchResultVO();
         try {
-            response = restHighLevelClient.search(searchRequest, RequestOptions.DEFAULT);
+            SearchResponse response = restHighLevelClient.search(searchRequest, RequestOptions.DEFAULT);
+            SearchHits searchHits = response.getHits();
+            long total = searchHits.getTotalHits();
+            searchResultVO.setTotal(total);
+            List<PostVO> postVOList = Lists.newArrayListWithCapacity((int) total);
+            SearchHit[] searchHits1 = searchHits.getHits();
+            for (SearchHit searchHit : searchHits1){
+                Map<String, Object> sourceAsMap = searchHit.getSourceAsMap();
+//                PostVO postVO = new PostVO();
+//                postVO.setId(Long.valueOf(sourceAsMap.get("id").toString()));
+//                postVO.setSubject(sourceAsMap.get("subject").toString());
+//                postVO.setStatus(Integer.valueOf(sourceAsMap.get("status").toString()));
+//                postVO.setType(Integer.valueOf(sourceAsMap.get("type").toString()));
+//                postVO.setFid(Long.valueOf(sourceAsMap.get("fid").toString()));
+//                postVO.setMessage(sourceAsMap.get("message").toString());
+//                postVOList.add(postVO);
+                PostVO postVO = JSON.parseObject(searchHit.getSourceAsString(),PostVO.class);
+                postVOList.add(postVO);
+            }
+            searchResultVO.setData(postVOList);
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return response;
+        return searchResultVO;
     }
 
     /**
@@ -108,26 +135,23 @@ public class RestClientController {
      * @return
      */
     @RequestMapping("/add")
-    public Object add(@RequestParam(value = "subject", defaultValue = "") String subject,
+    public Object add(@RequestParam(value = "id", defaultValue = "") String id,
+                      @RequestParam(value = "subject", defaultValue = "") String subject,
                       @RequestParam(value = "message", defaultValue = "") String message,
                       @RequestParam(value = "fid", defaultValue = "") String fid) {
         IndexResponse response = null;
         try {
-            int num = 1;
-            for (int i = 1; i <= num; i++) {
-                String s = String.valueOf(i);
-                IndexRequest indexRequest = new IndexRequest(RestClientConstant.POST_INDEX, RestClientConstant.INDEX_TYPE, s);
-                String jsonString = "{" +
-                        "\"id\":\"" + s + "\"," +
-                        "\"subject\":\"" + subject + "\"," +
-                        "\"fid\":\"" + fid + "\"," +
-                        "\"message\":\"" + message + "\"," +
-                        "\"type\":\"1\"," +
-                        "\"status\":\"0\"" +
-                        "}";
-                indexRequest.source(jsonString, XContentType.JSON);
-                response = restHighLevelClient.index(indexRequest, RequestOptions.DEFAULT);
-            }
+            IndexRequest indexRequest = new IndexRequest(RestClientConstant.POST_INDEX, RestClientConstant.INDEX_TYPE, id);
+            String jsonString = "{" +
+                    "\"id\":\"" + id + "\"," +
+                    "\"subject\":\"" + subject + "\"," +
+                    "\"fid\":\"" + fid + "\"," +
+                    "\"message\":\"" + message + "\"," +
+                    "\"type\":\"1\"," +
+                    "\"status\":\"0\"" +
+                    "}";
+            indexRequest.source(jsonString, XContentType.JSON);
+            response = restHighLevelClient.index(indexRequest, RequestOptions.DEFAULT);
         } catch (IOException e) {
             e.printStackTrace();
         }
