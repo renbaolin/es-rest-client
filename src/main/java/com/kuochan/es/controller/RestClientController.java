@@ -2,8 +2,8 @@ package com.kuochan.es.controller;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 
+import org.apache.commons.lang3.StringUtils;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.get.GetRequest;
@@ -106,19 +106,13 @@ public class RestClientController {
             long total = searchHits.getTotalHits();
             searchResultVO.setTotal(total);
             List<PostVO> postVOList = Lists.newArrayListWithCapacity((int) total);
-            SearchHit[] searchHits1 = searchHits.getHits();
-            for (SearchHit searchHit : searchHits1){
-                Map<String, Object> sourceAsMap = searchHit.getSourceAsMap();
-//                PostVO postVO = new PostVO();
-//                postVO.setId(Long.valueOf(sourceAsMap.get("id").toString()));
-//                postVO.setSubject(sourceAsMap.get("subject").toString());
-//                postVO.setStatus(Integer.valueOf(sourceAsMap.get("status").toString()));
-//                postVO.setType(Integer.valueOf(sourceAsMap.get("type").toString()));
-//                postVO.setFid(Long.valueOf(sourceAsMap.get("fid").toString()));
-//                postVO.setMessage(sourceAsMap.get("message").toString());
-//                postVOList.add(postVO);
-                PostVO postVO = JSON.parseObject(searchHit.getSourceAsString(),PostVO.class);
-                postVOList.add(postVO);
+            SearchHit[] searchHitList = searchHits.getHits();
+            for (SearchHit searchHit : searchHitList){
+                String sourceString = searchHit.getSourceAsString();
+                if(StringUtils.isNotEmpty(sourceString) && JSON.isValid(sourceString)){
+                    PostVO postVO = JSON.parseObject(searchHit.getSourceAsString(),PostVO.class);
+                    postVOList.add(postVO);
+                }
             }
             searchResultVO.setData(postVOList);
         } catch (IOException e) {
